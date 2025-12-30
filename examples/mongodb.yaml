@@ -1,0 +1,146 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: design99-mongodb
+  namespace: design99-infrastructure
+  labels:
+    app: design99-mongodb
+    component: database
+    project: design99
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Prevents concurrent pods accessing same PVC
+  selector:
+    matchLabels:
+      app: design99-mongodb
+  template:
+    metadata:
+      labels:
+        app: design99-mongodb
+        component: database
+        project: design99
+    spec:
+      terminationGracePeriodSeconds: 60  # Allow graceful MongoDB shutdown
+      containers:
+      - name: mongodb
+        image: mongo:8.0.9
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        env:
+        - name: MONGO_INITDB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: design99-infrastructure-config
+              key: MongoDB__DatabaseName
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+        - name: mongodb-config
+          mountPath: /data/configdb
+        - name: mongodb-conf
+          mountPath: /etc/mongod.conf
+          subPath: mongod.conf
+        livenessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 180
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 10
+        readinessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 8
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "pkill -SIGTERM mongod && sleep 30"]
+        resources:
+          requests:
+            memory: "1.5Gi"
+            cpu: "500m"
+          limits:
+            memory: "3Gi"
+            cpu: "1500m"
+      volumes:
+      - name: mongodb-data
+        persistentVolumeClaim:
+          claimName: design99-mongodb-data-pvc
+      - name: mongodb-config
+        persistentVolumeClaim:
+          claimName: design99-mongodb-config-pvc
+      - name: mongodb-conf
+        configMap:
+          name: design99-mongodb-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: design99-mongodb-config
+  namespace: design99-infrastructure
+  labels:
+    app: design99-mongodb
+    component: database
+    project: design99
+data:
+  mongod.conf: |
+    # Network settings
+    net:
+      port: 27017
+      bindIp: 0.0.0.0
+
+    # Storage settings
+    storage:
+      dbPath: /data/db
+      journal:
+        enabled: true
+      wiredTiger:
+        engineConfig:
+          cacheSizeGB: 1
+
+    # Process management
+    processManagement:
+      fork: false
+      pidFilePath: /var/run/mongodb/mongod.pid
+
+    # Logging
+    systemLog:
+      destination: file
+      path: /var/log/mongodb/mongod.log
+      logAppend: true
+      logRotate: reopen
+
+    # Performance tuning
+    operationProfiling:
+      slowOpThresholdMs: 1000
+      mode: slowOp
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: design99-mongodb
+  namespace: design99-infrastructure
+  labels:
+    app: design99-mongodb
+    component: database
+    project: design99
+    port-forward: "enabled"
+  annotations:
+    port-forward.design99.io/ports: "27017"
+    port-forward.design99.io/description: "MongoDB database access"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+    name: mongodb
+  selector:
+    app: design99-mongodb

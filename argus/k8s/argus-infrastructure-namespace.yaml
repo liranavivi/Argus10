@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argus-infrastructure
+  labels:
+    app.kubernetes.io/name: argus-infrastructure
+    app.kubernetes.io/part-of: argus
+  annotations:
+    description: "Argus infrastructure services namespace (Elasticsearch, Kibana)"
+

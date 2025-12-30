@@ -1,0 +1,11 @@
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\bin\Debug\net9.0\ArgusPupil.deps.json
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\bin\Debug\net9.0\ArgusPupil.dll
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\bin\Debug\net9.0\ArgusPupil.pdb
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ArgusPupil.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ArgusPupil.AssemblyInfoInputs.cache
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ArgusPupil.AssemblyInfo.cs
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ArgusPupil.csproj.CoreCompileInputs.cache
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ArgusPupil.dll
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\refint\ArgusPupil.dll
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ArgusPupil.pdb
+C:\Users\Administrator\source\repos\Argus10\argus\src\ArgusPupil\obj\Debug\net9.0\ref\ArgusPupil.dll

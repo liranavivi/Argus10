@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: design99-elasticsearch
+  namespace: design99-infrastructure
+  labels:
+    app: design99-elasticsearch
+    component: search
+    project: design99
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Prevents concurrent pods accessing same PVC
+  selector:
+    matchLabels:
+      app: design99-elasticsearch
+  template:
+    metadata:
+      labels:
+        app: design99-elasticsearch
+        component: search
+        project: design99
+    spec:
+      terminationGracePeriodSeconds: 120  # Allow graceful Elasticsearch shutdown
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+        ports:
+        - containerPort: 9200
+          name: http
+        - containerPort: 9300
+          name: transport
+        env:
+        - name: discovery.type
+          value: "single-node"
+        - name: xpack.security.enabled
+          value: "false"
+        - name: xpack.security.enrollment.enabled
+          value: "false"
+        - name: xpack.security.http.ssl.enabled
+          value: "false"
+        - name: xpack.security.transport.ssl.enabled
+          value: "false"
+        - name: cluster.name
+          value: "design99-cluster"
+        - name: node.name
+          value: "design99-node"
+        - name: ES_JAVA_OPTS
+          value: "-Xms2g -Xmx2g"  # Increased heap size for ES 8.11.0
+        - name: http.cors.enabled
+          value: "true"
+        - name: bootstrap.memory_lock
+          value: "true"
+        - name: cluster.routing.allocation.disk.threshold_enabled
+          value: "false"
+
+        volumeMounts:
+        - name: elasticsearch-data
+          mountPath: /usr/share/elasticsearch/data
+
+        # Startup probe - allows long initialization time for ES
+        startupProbe:
+          httpGet:
+            path: /_cluster/health
+            port: 9200
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 30  # Allow 5 minutes for startup
+          successThreshold: 1
+
+        # Liveness probe - less aggressive after startup
+        livenessProbe:
+          httpGet:
+            path: /_cluster/health
+            port: 9200
+            scheme: HTTP
+          initialDelaySeconds: 180  # Wait 3 minutes after startup
+          periodSeconds: 60         # Check every minute
+          timeoutSeconds: 15
+          failureThreshold: 3
+          successThreshold: 1
+
+        # Readiness probe - check cluster status
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?wait_for_status=yellow&timeout=30s
+            port: 9200
+            scheme: HTTP
+          initialDelaySeconds: 120  # Wait 2 minutes
+          periodSeconds: 30         # Check every 30 seconds
+          timeoutSeconds: 35        # Allow for wait_for_status timeout
+          failureThreshold: 3
+          successThreshold: 1
+
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "curl -X POST 'localhost:9200/_cluster/nodes/_local/_shutdown'"]
+
+        # Significantly increased resources for ES 8.11.0
+        resources:
+          requests:
+            memory: "2Gi"     # Increased from 512Mi
+            cpu: "500m"       # Increased from 250m
+          limits:
+            memory: "4Gi"     # Increased from 1Gi
+            cpu: "2000m"      # Increased from 500m
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+      volumes:
+      - name: elasticsearch-data
+        persistentVolumeClaim:
+          claimName: design99-elasticsearch-data-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: design99-elasticsearch
+  namespace: design99-infrastructure
+  labels:
+    app: design99-elasticsearch
+    component: search
+    project: design99
+    port-forward: "enabled"
+  annotations:
+    port-forward.design99.io/ports: "9200"
+    port-forward.design99.io/description: "Elasticsearch search and analytics"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9200
+    targetPort: 9200
+    protocol: TCP
+  - name: transport
+    port: 9300
+    targetPort: 9300
+    protocol: TCP
+  selector:
+    app: design99-elasticsearch

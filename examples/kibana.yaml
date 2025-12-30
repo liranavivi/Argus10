@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: design99-kibana
+  namespace: design99-infrastructure
+  labels:
+    app: design99-kibana
+    component: visualization
+    project: design99
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: design99-kibana
+  template:
+    metadata:
+      labels:
+        app: design99-kibana
+        component: visualization
+        project: design99
+    spec:
+      # Wait for Elasticsearch to be ready before starting Kibana
+      initContainers:
+      - name: wait-for-elasticsearch
+        image: curlimages/curl:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Elasticsearch to be ready..."
+          until curl -f http://design99-elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=60s; do
+            echo "Elasticsearch not ready yet, waiting 10 seconds..."
+            sleep 10
+          done
+          echo "Elasticsearch is ready!"
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+
+      containers:
+      - name: kibana
+        image: docker.elastic.co/kibana/kibana:8.11.0
+        ports:
+        - containerPort: 5601
+          name: http
+        env:
+        - name: ELASTICSEARCH_HOSTS
+          value: "http://design99-elasticsearch:9200"
+        - name: SERVER_NAME
+          value: "design99-kibana"
+        - name: SERVER_HOST
+          value: "0.0.0.0"
+        - name: XPACK_SECURITY_ENABLED
+          value: "false"
+        - name: XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+          value: "a7a6311933d3503b89bc2dbc36572c33a6c10925682e591bffcab6911c06786d"
+        # Additional stability settings
+        - name: ELASTICSEARCH_REQUESTTIMEOUT
+          value: "90000"
+        - name: ELASTICSEARCH_PINGTIMEOUT
+          value: "3000"
+        - name: KIBANA_DEFAULTAPPID
+          value: "discover"
+        - name: LOGGING_QUIET
+          value: "true"
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=2048"
+
+        # Startup probe - allows long initialization time
+        startupProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 30  # Allow 5 minutes for startup
+          successThreshold: 1
+
+        # Liveness probe - less aggressive after startup
+        livenessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+            scheme: HTTP
+          initialDelaySeconds: 300  # Wait 5 minutes after startup (increased from 180s)
+          periodSeconds: 60         # Check every minute
+          timeoutSeconds: 30        # Increased from 15s
+          failureThreshold: 5       # Increased from 3
+          successThreshold: 1
+
+        # Readiness probe - determines when pod can receive traffic
+        readinessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+            scheme: HTTP
+          initialDelaySeconds: 180  # Wait 3 minutes (increased from 120s)
+          periodSeconds: 30         # Check every 30 seconds
+          timeoutSeconds: 20        # Increased from 10s
+          failureThreshold: 5       # Increased from 3
+          successThreshold: 1
+
+        # Significantly increased resources for Kibana 8.11.0
+        resources:
+          requests:
+            memory: "1Gi"     # Increased from 256Mi
+            cpu: "75m"        # Match current pod to fit node capacity
+          limits:
+            memory: "3Gi"     # Increased from 1Gi
+            cpu: "1000m"      # Increased from 500m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: design99-kibana
+  namespace: design99-infrastructure
+  labels:
+    app: design99-kibana
+    component: visualization
+    project: design99
+    port-forward: "enabled"
+  annotations:
+    port-forward.design99.io/ports: "5601"
+    port-forward.design99.io/description: "Kibana log visualization"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5601
+    targetPort: 5601
+    name: http
+  selector:
+    app: design99-kibana

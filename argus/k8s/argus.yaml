@@ -1,0 +1,137 @@
+# Argus Deployment and Service
+# The central health monitoring service for the observability stack
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus
+  namespace: argus
+  labels:
+    app: argus
+    app.kubernetes.io/name: argus
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argus
+  template:
+    metadata:
+      labels:
+        app: argus
+        app.kubernetes.io/name: argus
+        app.kubernetes.io/part-of: argus
+    spec:
+      serviceAccountName: argus
+      containers:
+      - name: argus
+        image: argus:1.0.7
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: Argus__K8sLayer__Kubernetes__UseInClusterConfig
+          value: "true"
+        # OpenTelemetry Collector endpoint for metrics export
+        - name: OpenTelemetry__CollectorEndpoint
+          value: "http://otel-collector:4317"
+        # Hazelcast L2 cache connection for crash recovery
+        - name: Argus__Hazelcast__Addresses__0
+          value: "hazelcast:5701"
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus
+  namespace: argus
+  labels:
+    app: argus
+    app.kubernetes.io/name: argus
+    app.kubernetes.io/part-of: argus
+spec:
+  selector:
+    app: argus
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  # Port 9099 is the Alertmanager-compatible endpoint for Prometheus to push alerts
+  # Routes to the same container port since all endpoints are on 8080
+  - name: alerts
+    port: 9099
+    targetPort: 8080
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argus
+  namespace: argus
+  labels:
+    app: argus
+    app.kubernetes.io/name: argus
+    app.kubernetes.io/part-of: argus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argus
+  namespace: argus
+  labels:
+    app: argus
+    app.kubernetes.io/name: argus
+    app.kubernetes.io/part-of: argus
+rules:
+# Read pods for Layer 1 health checks
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus
+  namespace: argus
+  labels:
+    app: argus
+    app.kubernetes.io/name: argus
+    app.kubernetes.io/part-of: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus
+subjects:
+- kind: ServiceAccount
+  name: argus
+  namespace: argus
+

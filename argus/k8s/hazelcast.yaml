@@ -1,0 +1,90 @@
+# Hazelcast Deployment and Service
+# Provides distributed L2 cache for Argus alerts vector
+# Enables crash recovery by persisting alerts across pod restarts
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hazelcast
+  namespace: argus
+  labels:
+    app: hazelcast
+    component: cache
+    app.kubernetes.io/name: hazelcast
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hazelcast
+  template:
+    metadata:
+      labels:
+        app: hazelcast
+        component: cache
+        app.kubernetes.io/name: hazelcast
+        app.kubernetes.io/part-of: argus
+    spec:
+      containers:
+      - name: hazelcast
+        image: hazelcast/hazelcast:5.6.0
+        ports:
+        - containerPort: 5701
+          name: hazelcast
+        - containerPort: 8080
+          name: management
+        env:
+        - name: PROMETHEUS_PORT
+          value: ""
+        - name: JAVA_OPTS
+          value: "-Dhazelcast.config=/opt/hazelcast/config/hazelcast.xml -Dhazelcast.shutdownhook.policy=GRACEFUL -Dhazelcast.shutdownhook.enabled=true -Xms512m -Xmx1g"
+        volumeMounts:
+        - name: hazelcast-config
+          mountPath: /opt/hazelcast/config/hazelcast.xml
+          subPath: hazelcast.xml
+        livenessProbe:
+          tcpSocket:
+            port: 5701
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5701
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: hazelcast-config
+        configMap:
+          name: hazelcast-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hazelcast
+  namespace: argus
+  labels:
+    app: hazelcast
+    component: cache
+    app.kubernetes.io/name: hazelcast
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  ports:
+  - name: hazelcast
+    port: 5701
+    targetPort: 5701
+    protocol: TCP
+  - name: management
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: hazelcast
+

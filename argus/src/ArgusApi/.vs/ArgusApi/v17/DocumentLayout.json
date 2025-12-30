@@ -1,0 +1,105 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|c:\\users\\administrator\\source\\repos\\argus2\\argus\\src\\argusapi\\argusmonitor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|solutionrelative:argusmonitor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|c:\\users\\administrator\\source\\repos\\argus2\\argus\\src\\argusapi\\argusbackgroundservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|solutionrelative:argusbackgroundservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|c:\\users\\administrator\\source\\repos\\argus2\\argus\\src\\argusapi\\servicecollectionextensions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|solutionrelative:servicecollectionextensions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|c:\\users\\administrator\\source\\repos\\argus2\\argus\\src\\argusapi\\argusmonitoringoptions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|solutionrelative:argusmonitoringoptions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|c:\\users\\administrator\\source\\repos\\argus2\\argus\\src\\argusapi\\iargusmonitor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0CEA4458-7D71-E376-1021-18E6920B3F4D}|ArgusApi.csproj|solutionrelative:iargusmonitor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ArgusBackgroundService.cs",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ArgusBackgroundService.cs",
+              "RelativeDocumentMoniker": "ArgusBackgroundService.cs",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ArgusBackgroundService.cs",
+              "RelativeToolTip": "ArgusBackgroundService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-27T19:45:04.921Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "IArgusMonitor.cs",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\IArgusMonitor.cs",
+              "RelativeDocumentMoniker": "IArgusMonitor.cs",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\IArgusMonitor.cs",
+              "RelativeToolTip": "IArgusMonitor.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-27T19:44:44.204Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ServiceCollectionExtensions.cs",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ServiceCollectionExtensions.cs",
+              "RelativeDocumentMoniker": "ServiceCollectionExtensions.cs",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ServiceCollectionExtensions.cs",
+              "RelativeToolTip": "ServiceCollectionExtensions.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABcAAAA+AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-27T15:04:57.088Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ArgusMonitor.cs",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ArgusMonitor.cs",
+              "RelativeDocumentMoniker": "ArgusMonitor.cs",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ArgusMonitor.cs",
+              "RelativeToolTip": "ArgusMonitor.cs",
+              "ViewState": "AgIAABMAAAAAAAAAAAAgwB4AAAAxAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-27T15:04:32.683Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ArgusMonitoringOptions.cs",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ArgusMonitoringOptions.cs",
+              "RelativeDocumentMoniker": "ArgusMonitoringOptions.cs",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\Argus2\\argus\\src\\ArgusApi\\ArgusMonitoringOptions.cs",
+              "RelativeToolTip": "ArgusMonitoringOptions.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAQwCsAAAAaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-27T15:04:17.515Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
