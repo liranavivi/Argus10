@@ -64,19 +64,96 @@ public class ArgusCoordinator : IArgusCoordinator, IDisposable
         _k8sConfig = config.Value.K8sLayer;
         _watchdogConfig = config.Value.Watchdog;
 
-        InitializeTimers();
-
         _logger.LogInformation(
             "ArgusCoordinator started. K8s polling: {Polling}s, Snapshot interval: {Snapshot}s, Watchdog timeout: {Timeout}s",
             _k8sConfig.PollingIntervalSeconds, _coordinatorConfig.SnapshotIntervalSeconds, _watchdogConfig.TimeoutSeconds);
+
+        // Initialize based on startup mode
+        if (_alertsVector.IsCrashRecovery)
+        {
+            InitializeCrashRecovery();
+        }
+        else
+        {
+            InitializeNormalStartup();
+        }
     }
 
-    private void InitializeTimers()
+    /// <summary>
+    /// Initialize for crash recovery mode:
+    /// - Poll K8s immediately
+    /// - Take crash recovery snapshot (skip CREATEs, enqueue all CANCELs)
+    /// - Start watchdog with short grace period (15s)
+    /// - Start normal timers
+    /// </summary>
+    private void InitializeCrashRecovery()
     {
-        // Use appropriate grace period based on crash recovery mode
-        var gracePeriodSeconds = _alertsVector.IsCrashRecovery
-            ? _watchdogConfig.CrashRecoveryGracePeriodSeconds
-            : _watchdogConfig.NormalGracePeriodSeconds;
+        _logger.LogWarning(
+            "CRASH RECOVERY MODE: Immediate K8s poll, crash recovery snapshot, watchdog grace period: {GracePeriod}s",
+            _watchdogConfig.CrashRecoveryGracePeriodSeconds);
+
+        // 1. Poll K8s immediately (synchronous for crash recovery)
+        var correlationId = GeneratePollingCorrelationId();
+        var executionId = GenerateExecutionId();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                _logger.LogInformation("CRASH RECOVERY: Polling K8s layer immediately. CorrelationId={CorrelationId}", correlationId);
+                var k8sState = await _k8sLayerService.GetStateAsync(correlationId);
+                var alerts = _k8sLayerService.GenerateAlerts(k8sState, executionId);
+
+                foreach (var alert in alerts)
+                {
+                    _metrics.IncrementAlertsReceived("k8s_layer");
+                    _alertsVector.UpdateAlert(alert);
+                }
+
+                _logger.LogInformation(
+                    "CRASH RECOVERY: K8s poll complete, {AlertCount} alerts updated. CorrelationId={CorrelationId}",
+                    alerts.Count, correlationId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CRASH RECOVERY: K8s poll failed. CorrelationId={CorrelationId}", correlationId);
+            }
+
+            // 2. Take crash recovery snapshot (skip CREATEs, enqueue all CANCELs)
+            var snapshotCorrelationId = GenerateSnapshotCorrelationId();
+            try
+            {
+                _nocSnapshot.TakeCrashRecoverySnapshot(snapshotCorrelationId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CRASH RECOVERY: Snapshot failed. CorrelationId={CorrelationId}", snapshotCorrelationId);
+            }
+        });
+
+        // 3. Start watchdog grace period timer (15s for crash recovery)
+        var gracePeriodMs = _watchdogConfig.CrashRecoveryGracePeriodSeconds * 1000;
+        _gracePeriodTimer = new Timer(OnGracePeriodExpired, null, gracePeriodMs, Timeout.Infinite);
+
+        // 4. Start K8s polling timer (normal interval)
+        var pollingIntervalMs = _k8sConfig.PollingIntervalSeconds * 1000;
+        _pollingTimer = new Timer(OnPollingTimerFired, null, pollingIntervalMs, pollingIntervalMs);
+
+        // 5. Start NOC snapshot timer immediately (crash recovery starts active)
+        var snapshotIntervalMs = _coordinatorConfig.SnapshotIntervalSeconds * 1000;
+        _snapshotTimer = new Timer(OnSnapshotTimerFired, null, snapshotIntervalMs, snapshotIntervalMs);
+
+        _logger.LogInformation(
+            "CRASH RECOVERY: Timers started. Watchdog grace period: {GracePeriod}s, NOC snapshots active immediately",
+            _watchdogConfig.CrashRecoveryGracePeriodSeconds);
+    }
+
+    /// <summary>
+    /// Initialize for normal startup:
+    /// - Wait for grace period before starting watchdog and snapshots
+    /// </summary>
+    private void InitializeNormalStartup()
+    {
+        var gracePeriodSeconds = _watchdogConfig.NormalGracePeriodSeconds;
 
         // Grace period timer - fires once after grace period ends
         var gracePeriodMs = gracePeriodSeconds * 1000;
@@ -91,9 +168,8 @@ public class ArgusCoordinator : IArgusCoordinator, IDisposable
         _snapshotTimer = null;
 
         _logger.LogInformation(
-            "Grace period active ({GracePeriod}s, Mode={Mode}). NOC snapshots will start after grace period ends",
-            gracePeriodSeconds,
-            _alertsVector.IsCrashRecovery ? "CrashRecovery" : "Normal");
+            "Normal startup: Grace period active ({GracePeriod}s). NOC snapshots will start after grace period ends",
+            gracePeriodSeconds);
     }
 
     private void OnGracePeriodExpired(object? state)

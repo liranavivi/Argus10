@@ -82,14 +82,10 @@ public class RestartTrackingConfiguration
     public int RestartThreshold { get; set; } = 3;
 
     /// <summary>
-    /// Grace period in seconds during normal startup (fresh start)
+    /// Grace period in seconds during startup before restart storm detection is active.
+    /// During crash recovery, restart tracking has no grace period (immediate detection).
     /// </summary>
     public int NormalGracePeriodSeconds { get; set; } = 300;
-
-    /// <summary>
-    /// Shorter grace period in seconds when recovering from crash (L2 data loaded)
-    /// </summary>
-    public int CrashRecoveryGracePeriodSeconds { get; set; } = 60;
 }
 
 /// <summary>
@@ -109,9 +105,10 @@ public class WatchdogConfiguration
     public int NormalGracePeriodSeconds { get; set; } = 180;
 
     /// <summary>
-    /// Shorter grace period in seconds when recovering from crash (L2 data loaded)
+    /// Shorter grace period in seconds when recovering from crash (L2 data loaded).
+    /// Default: 15 seconds
     /// </summary>
-    public int CrashRecoveryGracePeriodSeconds { get; set; } = 30;
+    public int CrashRecoveryGracePeriodSeconds { get; set; } = 15;
 
     /// <summary>Whether watchdog alerts should be sent to NOC</summary>
     public bool SendToNoc { get; set; } = true;

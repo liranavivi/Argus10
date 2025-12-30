@@ -32,21 +32,27 @@ public class RestartTracker : IRestartTracker
     }
 
     /// <summary>
-    /// Get the effective grace period in seconds based on crash recovery mode
-    /// </summary>
-    private int EffectiveGracePeriodSeconds => _alertsVector.IsCrashRecovery
-        ? _options.CrashRecoveryGracePeriodSeconds
-        : _options.NormalGracePeriodSeconds;
-
-    /// <summary>
-    /// Whether the grace period after Argus startup is still active
+    /// Whether the grace period after Argus startup is still active.
+    /// During crash recovery, there is no grace period (immediate detection).
     /// </summary>
     public bool IsGracePeriodActive
     {
         get
         {
+            // No grace period during crash recovery - immediate restart storm detection
+            if (_alertsVector.IsCrashRecovery)
+            {
+                if (!_gracePeriodEndLogged)
+                {
+                    _gracePeriodEndLogged = true;
+                    _logger.LogInformation(
+                        "Restart tracking active immediately (crash recovery mode - no grace period)");
+                }
+                return false;
+            }
+
             var elapsed = DateTime.UtcNow - _startupTime;
-            var isActive = elapsed.TotalSeconds < EffectiveGracePeriodSeconds;
+            var isActive = elapsed.TotalSeconds < _options.NormalGracePeriodSeconds;
 
             // Log once when grace period ends
             if (!isActive && !_gracePeriodEndLogged)
@@ -54,9 +60,8 @@ public class RestartTracker : IRestartTracker
                 _gracePeriodEndLogged = true;
                 _logger.LogInformation(
                     "Restart tracking grace period ended. Restart storm detection active. " +
-                    "Mode={Mode}, GracePeriod={GracePeriodSeconds}s",
-                    _alertsVector.IsCrashRecovery ? "CrashRecovery" : "Normal",
-                    EffectiveGracePeriodSeconds);
+                    "Mode=Normal, GracePeriod={GracePeriodSeconds}s",
+                    _options.NormalGracePeriodSeconds);
             }
 
             return isActive;

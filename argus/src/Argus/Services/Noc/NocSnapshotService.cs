@@ -20,6 +20,12 @@ public interface INocSnapshotService
     /// Take a snapshot of the alerts vector and enqueue decisions
     /// </summary>
     void TakeSnapshot(string correlationId);
+
+    /// <summary>
+    /// Take a crash recovery snapshot - skips all CREATEs and enqueues only CANCELs.
+    /// Used on startup after crash to clear stale alerts from NOC.
+    /// </summary>
+    void TakeCrashRecoverySnapshot(string correlationId);
 }
 
 public class NocSnapshotService : INocSnapshotService
@@ -81,6 +87,75 @@ public class NocSnapshotService : INocSnapshotService
 
         // Enqueue decisions
         EnqueueDecisions(snapshot, correlationId);
+
+        // Record snapshot duration
+        _metrics.RecordSnapshotDuration(DateTime.UtcNow - startTime);
+    }
+
+    /// <inheritdoc />
+    public void TakeCrashRecoverySnapshot(string correlationId)
+    {
+        var startTime = DateTime.UtcNow;
+
+        // Get current snapshot
+        var snapshot = _alertsVector.GetSnapshot();
+
+        // Count alerts by status
+        var createCount = snapshot.Count(a => a.Status == AlertStatus.CREATE);
+        var cancelCount = snapshot.Count(a => a.Status == AlertStatus.CANCEL);
+        var unknownCount = snapshot.Count(a => a.Status == AlertStatus.UNKNOWN);
+
+        _logger.LogInformation(
+            "CRASH RECOVERY Snapshot: {Total} alerts ({Create} CREATE-SKIP, {Cancel} CANCEL, {Unknown} UNKNOWN-SKIP). " +
+            "Discarding all CREATEs, enqueuing all CANCELs. CorrelationId={CorrelationId}",
+            snapshot.Count, createCount, cancelCount, unknownCount, correlationId);
+
+        // Convert all alerts to CANCEL status for crash recovery
+        // This ensures NOC clears all stale alerts
+        var allAlertsAsCancels = snapshot
+            .Where(a => a.Status != AlertStatus.IGNORE)
+            .Select(a => new AlertDto
+            {
+                Name = a.Name,
+                Fingerprint = a.Fingerprint,
+                Priority = a.Priority,
+                Status = AlertStatus.CANCEL, // Force all to CANCEL
+                Summary = $"[CRASH RECOVERY] {a.Summary}",
+                Source = a.Source,
+                SendToNoc = a.SendToNoc,
+                Payload = a.Payload,
+                SuppressWindow = a.SuppressWindow,
+                LastSeen = a.LastSeen,
+                ExecutionId = a.ExecutionId
+            })
+            .ToList();
+
+        // Enqueue all as CANCELs (batch them together)
+        if (allAlertsAsCancels.Any())
+        {
+            _nocQueue.Enqueue(new NocDecision
+            {
+                Type = NocDecisionType.HandleCancels,
+                Alerts = allAlertsAsCancels,
+                SnapshotTime = DateTime.UtcNow,
+                CorrelationId = correlationId
+            });
+
+            foreach (var cancel in allAlertsAsCancels)
+            {
+                _nocQueue.MarkAsEnqueued(cancel.Fingerprint);
+            }
+
+            _logger.LogInformation(
+                "CRASH RECOVERY: Enqueued {Count} CANCEL alerts to clear NOC. CorrelationId={CorrelationId}",
+                allAlertsAsCancels.Count, correlationId);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "CRASH RECOVERY: No alerts to cancel. CorrelationId={CorrelationId}",
+                correlationId);
+        }
 
         // Record snapshot duration
         _metrics.RecordSnapshotDuration(DateTime.UtcNow - startTime);
