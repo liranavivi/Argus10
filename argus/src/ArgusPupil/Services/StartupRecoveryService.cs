@@ -29,7 +29,7 @@ public class StartupRecoveryService : IHostedService
     {
         _logger.LogInformation("ArgusPupil starting up...");
 
-        // Check for recovery data from previous kill
+        // Check for recovery data from previous failed NOC send
         await ProcessRecoveryDataAsync(cancellationToken);
 
         // Start the watchdog timer
@@ -62,18 +62,18 @@ public class StartupRecoveryService : IHostedService
             recoveryData.RecoveredAt = DateTime.UtcNow;
 
             _logger.LogInformation(
-                "Processing recovery from kill at {KilledAt}. Reason={Reason}, CorrelationId={CorrelationId}",
-                recoveryData.KilledAt, recoveryData.Reason, recoveryData.CorrelationId);
+                "Processing recovery from failed NOC send at {FailedAt}. Reason={Reason}, CorrelationId={CorrelationId}",
+                recoveryData.FailedAt, recoveryData.FailureReason, recoveryData.CorrelationId);
 
             // Modify the NOC details to indicate this is a recovery message
             var nocDetails = recoveryData.NocDetails;
             nocDetails.Summary = $"[RECOVERY] {nocDetails.Summary}";
-            nocDetails.Description = $"Application recovered from kill command.\nOriginal kill time: {recoveryData.KilledAt:O}\nRecovery time: {recoveryData.RecoveredAt:O}\nReason: {recoveryData.Reason}\n\n{nocDetails.Description}";
+            nocDetails.Description = $"Message recovered from failed send.\nOriginal failure time: {recoveryData.FailedAt:O}\nRecovery time: {recoveryData.RecoveredAt:O}\nFailure reason: {recoveryData.FailureReason}\n\n{nocDetails.Description}";
 
             // Send to NOC
             var result = await _nocClient.SendAsync(
                 nocDetails,
-                "recovery",
+                $"recovery-{recoveryData.Source}",
                 $"recovery-{recoveryData.CorrelationId}",
                 cancellationToken);
 
@@ -88,7 +88,7 @@ public class StartupRecoveryService : IHostedService
             }
             else
             {
-                // NOC send failed - the NocClientService will handle shutdown
+                // NOC send failed again - the NocClientService will handle saving new recovery data and shutdown
                 _logger.LogError(
                     "Failed to send recovery message. Error={Error}, CorrelationId={CorrelationId}",
                     result.ErrorMessage, recoveryData.CorrelationId);

@@ -10,13 +10,14 @@ namespace ArgusPupil.Services;
 
 /// <summary>
 /// HTTP client service for sending messages to NOC.
-/// If all retries fail, triggers application shutdown.
+/// If all retries fail, saves recovery data and triggers application shutdown.
 /// </summary>
 public class NocClientService : INocClientService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<NocClientService> _logger;
     private readonly IHostApplicationLifetime _lifetime;
+    private readonly IPersistenceService _persistence;
     private readonly NocClientOptions _options;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -29,11 +30,13 @@ public class NocClientService : INocClientService
         HttpClient httpClient,
         ILogger<NocClientService> logger,
         IHostApplicationLifetime lifetime,
+        IPersistenceService persistence,
         IOptions<ArgusPupilOptions> options)
     {
         _httpClient = httpClient;
         _logger = logger;
         _lifetime = lifetime;
+        _persistence = persistence;
         _options = options.Value.NocClient;
     }
 
@@ -120,11 +123,27 @@ public class NocClientService : INocClientService
             retryCount++;
         }
 
-        // All retries exhausted - trigger shutdown
+        // All retries exhausted - save recovery data and trigger shutdown
         var errorMessage = lastException?.Message ?? $"HTTP {lastStatusCode}";
         _logger.LogCritical(
-            "NOC send failed after {MaxRetries} retries. Initiating graceful shutdown. Error={Error}, CorrelationId={CorrelationId}",
+            "NOC send failed after {MaxRetries} retries. Saving recovery data and initiating graceful shutdown. Error={Error}, CorrelationId={CorrelationId}",
             _options.MaxRetries + 1, errorMessage, correlationId);
+
+        // Save recovery data to file for retry on next startup
+        var recoveryData = new RecoveryData
+        {
+            FailedAt = DateTime.UtcNow,
+            CorrelationId = correlationId,
+            Source = source,
+            FailureReason = errorMessage,
+            NocDetails = nocDetails
+        };
+
+        var saved = await _persistence.SaveRecoveryDataAsync(recoveryData);
+        if (!saved)
+        {
+            _logger.LogError("Failed to save recovery data. NOC message will be lost. CorrelationId={CorrelationId}", correlationId);
+        }
 
         // Trigger graceful shutdown
         _lifetime.StopApplication();

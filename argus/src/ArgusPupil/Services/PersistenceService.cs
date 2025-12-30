@@ -105,8 +105,8 @@ public class PersistenceService : IPersistenceService
             if (data != null)
             {
                 _logger.LogInformation(
-                    "Recovery data loaded. KilledAt={KilledAt}, CorrelationId={CorrelationId}",
-                    data.KilledAt, data.CorrelationId);
+                    "Recovery data loaded. FailedAt={FailedAt}, CorrelationId={CorrelationId}",
+                    data.FailedAt, data.CorrelationId);
             }
 
             return Task.FromResult(data);

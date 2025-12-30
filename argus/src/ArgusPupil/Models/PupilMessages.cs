@@ -14,11 +14,6 @@ public enum PupilMessageType
     Heartbeat,
 
     /// <summary>
-    /// Kill command - save message and shutdown gracefully
-    /// </summary>
-    KillYourself,
-
-    /// <summary>
     /// Send NOC message immediately
     /// </summary>
     SendNocMessage
@@ -109,25 +104,6 @@ public class HeartbeatMessage : PupilMessageBase
     /// If null, uses configured default timeout.
     /// </summary>
     public int? TimeoutSeconds { get; set; }
-}
-
-/// <summary>
-/// Kill command - save message and shutdown gracefully
-/// </summary>
-public class KillYourselfMessage : PupilMessageBase
-{
-    /// <inheritdoc />
-    public override PupilMessageType MessageType => PupilMessageType.KillYourself;
-
-    /// <summary>
-    /// NOC details to send after recovering (on next startup)
-    /// </summary>
-    public NocDetails NocDetails { get; set; } = new();
-
-    /// <summary>
-    /// Reason for the kill command
-    /// </summary>
-    public string Reason { get; set; } = string.Empty;
 }
 
 /// <summary>

@@ -2,7 +2,6 @@ using System.Threading.Channels;
 using ArgusPupil.Configuration;
 using ArgusPupil.Events;
 using ArgusPupil.Models;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -16,8 +15,6 @@ public class MessageHandlerService : IMessageHandlerService
     private readonly ILogger<MessageHandlerService> _logger;
     private readonly IWatchdogTimerService _watchdog;
     private readonly INocClientService _nocClient;
-    private readonly IPersistenceService _persistence;
-    private readonly IHostApplicationLifetime _lifetime;
     private readonly IEnumerable<IPupilEventHandler> _eventHandlers;
     private readonly EventHandlerOptions _options;
     private readonly Channel<Func<CancellationToken, Task>> _eventQueue;
@@ -26,16 +23,12 @@ public class MessageHandlerService : IMessageHandlerService
         ILogger<MessageHandlerService> logger,
         IWatchdogTimerService watchdog,
         INocClientService nocClient,
-        IPersistenceService persistence,
-        IHostApplicationLifetime lifetime,
         IEnumerable<IPupilEventHandler> eventHandlers,
         IOptions<ArgusPupilOptions> options)
     {
         _logger = logger;
         _watchdog = watchdog;
         _nocClient = nocClient;
-        _persistence = persistence;
-        _lifetime = lifetime;
         _eventHandlers = eventHandlers;
         _options = options.Value.EventHandler;
 
@@ -61,7 +54,6 @@ public class MessageHandlerService : IMessageHandlerService
             return message switch
             {
                 HeartbeatMessage hb => await ProcessHeartbeatAsync(hb, cancellationToken),
-                KillYourselfMessage kill => await ProcessKillYourselfAsync(kill, cancellationToken),
                 SendNocMessageCommand send => await ProcessSendNocMessageAsync(send, cancellationToken),
                 _ => MessageProcessResult.Failed($"Unknown message type: {message.MessageType}")
             };
@@ -95,47 +87,6 @@ public class MessageHandlerService : IMessageHandlerService
         });
 
         return Task.FromResult(MessageProcessResult.Succeeded());
-    }
-
-    private async Task<MessageProcessResult> ProcessKillYourselfAsync(KillYourselfMessage message, CancellationToken cancellationToken)
-    {
-        _logger.LogWarning(
-            "KillYourself received. Reason={Reason}, CorrelationId={CorrelationId}",
-            message.Reason, message.CorrelationId);
-
-        // Save recovery data to file
-        var recoveryData = new RecoveryData
-        {
-            KilledAt = DateTime.UtcNow,
-            CorrelationId = message.CorrelationId,
-            Reason = message.Reason,
-            NocDetails = message.NocDetails
-        };
-
-        var saved = await _persistence.SaveRecoveryDataAsync(recoveryData);
-        if (!saved)
-        {
-            _logger.LogError("Failed to save recovery data. Shutdown will proceed without recovery file.");
-        }
-
-        // Dispatch event to handlers and wait for them to complete before shutdown
-        foreach (var handler in _eventHandlers)
-        {
-            try
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.HandlerTimeoutSeconds));
-                await handler.OnKillYourselfReceivedAsync(message, cts.Token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in kill event handler: {Handler}", handler.GetType().Name);
-            }
-        }
-
-        // Trigger graceful shutdown
-        _lifetime.StopApplication();
-
-        return MessageProcessResult.ShutdownRequired();
     }
 
     private async Task<MessageProcessResult> ProcessSendNocMessageAsync(SendNocMessageCommand message, CancellationToken cancellationToken)

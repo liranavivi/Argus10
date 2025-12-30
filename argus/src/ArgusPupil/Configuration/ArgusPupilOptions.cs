@@ -159,7 +159,7 @@ public class WatchdogOptions
 }
 
 /// <summary>
-/// File persistence configuration for KillYourself messages
+/// File persistence configuration for NOC message recovery
 /// </summary>
 public class PersistenceOptions
 {
@@ -169,7 +169,7 @@ public class PersistenceOptions
     public string StoragePath { get; set; } = ".";
 
     /// <summary>
-    /// Filename for the KillYourself message persistence. Default: arguspupil_recovery.json
+    /// Filename for the recovery message persistence. Default: arguspupil_recovery.json
     /// </summary>
     public string RecoveryFileName { get; set; } = "arguspupil_recovery.json";
 

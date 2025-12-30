@@ -34,11 +34,6 @@ public class PupilRequest
     public int? TimeoutSeconds { get; set; }
 
     /// <summary>
-    /// Reason for KillYourself command
-    /// </summary>
-    public string? Reason { get; set; }
-
-    /// <summary>
     /// Convert to typed message based on MessageType
     /// </summary>
     public PupilMessageBase ToTypedMessage()
@@ -52,13 +47,6 @@ public class PupilRequest
                 NocDetails = NocDetails,
                 TimeoutSeconds = TimeoutSeconds
             },
-            PupilMessageType.KillYourself => new KillYourselfMessage
-            {
-                CorrelationId = CorrelationId,
-                Timestamp = Timestamp,
-                NocDetails = NocDetails,
-                Reason = Reason ?? string.Empty
-            },
             PupilMessageType.SendNocMessage => new SendNocMessageCommand
             {
                 CorrelationId = CorrelationId,
@@ -68,42 +56,6 @@ public class PupilRequest
             _ => throw new ArgumentException($"Unknown message type: {MessageType}")
         };
     }
-}
-
-/// <summary>
-/// Recovery data saved to file when KillYourself is received
-/// </summary>
-public class RecoveryData
-{
-    /// <summary>
-    /// Version of the recovery data format
-    /// </summary>
-    public int Version { get; set; } = 1;
-
-    /// <summary>
-    /// When the kill command was received
-    /// </summary>
-    public DateTime KilledAt { get; set; }
-
-    /// <summary>
-    /// Original correlation ID from the kill command
-    /// </summary>
-    public string CorrelationId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Reason for the kill
-    /// </summary>
-    public string Reason { get; set; } = string.Empty;
-
-    /// <summary>
-    /// NOC details to send on recovery
-    /// </summary>
-    public NocDetails NocDetails { get; set; } = new();
-
-    /// <summary>
-    /// When recovery was attempted (set on startup)
-    /// </summary>
-    public DateTime? RecoveredAt { get; set; }
 }
 
 /// <summary>
@@ -144,5 +96,46 @@ public class PupilResponse
         CorrelationId = correlationId,
         Message = message
     };
+}
+
+/// <summary>
+/// Recovery data saved to file when NOC send fails after retries
+/// </summary>
+public class RecoveryData
+{
+    /// <summary>
+    /// Version of the recovery data format
+    /// </summary>
+    public int Version { get; set; } = 1;
+
+    /// <summary>
+    /// When the failure occurred
+    /// </summary>
+    public DateTime FailedAt { get; set; }
+
+    /// <summary>
+    /// Original correlation ID
+    /// </summary>
+    public string CorrelationId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Source context (e.g., "watchdog", "pupil")
+    /// </summary>
+    public string Source { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Reason for the failure
+    /// </summary>
+    public string FailureReason { get; set; } = string.Empty;
+
+    /// <summary>
+    /// NOC details to send on recovery
+    /// </summary>
+    public NocDetails NocDetails { get; set; } = new();
+
+    /// <summary>
+    /// When recovery was attempted (set on startup)
+    /// </summary>
+    public DateTime? RecoveredAt { get; set; }
 }
 

@@ -18,14 +18,6 @@ public interface IPupilEventHandler
     Task OnHeartbeatReceivedAsync(HeartbeatMessage message, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Called when a KillYourself message is received, before the application shuts down.
-    /// Override to implement cleanup logic before shutdown.
-    /// </summary>
-    /// <param name="message">The kill message</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    Task OnKillYourselfReceivedAsync(KillYourselfMessage message, CancellationToken cancellationToken);
-
-    /// <summary>
     /// Called when a SendNocMessage command is received.
     /// Override to intercept or modify NOC messages before they are sent.
     /// </summary>
@@ -42,12 +34,6 @@ public abstract class PupilEventHandlerBase : IPupilEventHandler
 {
     /// <inheritdoc />
     public virtual Task OnHeartbeatReceivedAsync(HeartbeatMessage message, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    public virtual Task OnKillYourselfReceivedAsync(KillYourselfMessage message, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
