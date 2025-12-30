@@ -101,59 +101,55 @@ public class NocSnapshotService : INocSnapshotService
         var snapshot = _alertsVector.GetSnapshot();
 
         // Count alerts by status
-        var createCount = snapshot.Count(a => a.Status == AlertStatus.CREATE);
-        var cancelCount = snapshot.Count(a => a.Status == AlertStatus.CANCEL);
-        var unknownCount = snapshot.Count(a => a.Status == AlertStatus.UNKNOWN);
+        var createAlerts = snapshot.Where(a => a.Status == AlertStatus.CREATE).ToList();
+        var cancelAlerts = snapshot.Where(a => a.Status == AlertStatus.CANCEL).ToList();
+        var unknownAlerts = snapshot.Where(a => a.Status == AlertStatus.UNKNOWN).ToList();
 
         _logger.LogInformation(
-            "CRASH RECOVERY Snapshot: {Total} alerts ({Create} CREATE-SKIP, {Cancel} CANCEL, {Unknown} UNKNOWN-SKIP). " +
-            "Discarding all CREATEs, enqueuing all CANCELs. CorrelationId={CorrelationId}",
-            snapshot.Count, createCount, cancelCount, unknownCount, correlationId);
+            "CRASH RECOVERY Snapshot: {Total} alerts ({Create} CREATE, {Cancel} CANCEL, {Unknown} UNKNOWN). " +
+            "Removing all CREATEs from vector, enqueuing all CANCELs. CorrelationId={CorrelationId}",
+            snapshot.Count, createAlerts.Count, cancelAlerts.Count, unknownAlerts.Count, correlationId);
 
-        // Convert all alerts to CANCEL status for crash recovery
-        // This ensures NOC clears all stale alerts
-        var allAlertsAsCancels = snapshot
-            .Where(a => a.Status != AlertStatus.IGNORE)
-            .Select(a => new AlertDto
-            {
-                Name = a.Name,
-                Fingerprint = a.Fingerprint,
-                Priority = a.Priority,
-                Status = AlertStatus.CANCEL, // Force all to CANCEL
-                Summary = $"[CRASH RECOVERY] {a.Summary}",
-                Source = a.Source,
-                SendToNoc = a.SendToNoc,
-                Payload = a.Payload,
-                SuppressWindow = a.SuppressWindow,
-                LastSeen = a.LastSeen,
-                ExecutionId = a.ExecutionId
-            })
-            .ToList();
+        // 1. Remove all CREATE alerts from the alerts vector
+        foreach (var createAlert in createAlerts)
+        {
+            _alertsVector.RemoveAlert(createAlert.Fingerprint);
+            _logger.LogDebug(
+                "CRASH RECOVERY: Removed CREATE alert from vector: {Name} (Fingerprint={Fingerprint}). CorrelationId={CorrelationId}",
+                createAlert.Name, createAlert.Fingerprint, correlationId);
+        }
 
-        // Enqueue all as CANCELs (batch them together)
-        if (allAlertsAsCancels.Any())
+        if (createAlerts.Any())
+        {
+            _logger.LogInformation(
+                "CRASH RECOVERY: Removed {Count} CREATE alerts from vector. CorrelationId={CorrelationId}",
+                createAlerts.Count, correlationId);
+        }
+
+        // 2. Enqueue all existing CANCEL alerts
+        if (cancelAlerts.Any())
         {
             _nocQueue.Enqueue(new NocDecision
             {
                 Type = NocDecisionType.HandleCancels,
-                Alerts = allAlertsAsCancels,
+                Alerts = cancelAlerts,
                 SnapshotTime = DateTime.UtcNow,
                 CorrelationId = correlationId
             });
 
-            foreach (var cancel in allAlertsAsCancels)
+            foreach (var cancel in cancelAlerts)
             {
                 _nocQueue.MarkAsEnqueued(cancel.Fingerprint);
             }
 
             _logger.LogInformation(
-                "CRASH RECOVERY: Enqueued {Count} CANCEL alerts to clear NOC. CorrelationId={CorrelationId}",
-                allAlertsAsCancels.Count, correlationId);
+                "CRASH RECOVERY: Enqueued {Count} CANCEL alerts to NOC. CorrelationId={CorrelationId}",
+                cancelAlerts.Count, correlationId);
         }
         else
         {
             _logger.LogInformation(
-                "CRASH RECOVERY: No alerts to cancel. CorrelationId={CorrelationId}",
+                "CRASH RECOVERY: No CANCEL alerts to enqueue. CorrelationId={CorrelationId}",
                 correlationId);
         }
 
